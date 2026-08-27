@@ -51,7 +51,22 @@ Ingest offline-safe, canonical data first so downstream layers can be built with
 
 ## Phase 4 — Meta ingestion
 
-Concrete adapters, one at a time:
+**Phase 4a — Pokémon Showdown sync infrastructure (delivered)**
+
+- [x] `ShowdownSyncService` with the full pipeline: `check → compare → fetch → validate → tests → activate`.
+- [x] Versioned dataset directories (`showdown_dataset_<sha[:12]>`) — active is never overwritten before validation passes.
+- [x] Rollback pointer to the previous known-good dataset.
+- [x] Mongo advisory lock — two sync jobs can never run at once.
+- [x] `showdown_sync_history` collection (id, commits, timings, records, validation errors, test results, activation, error, importer + app version).
+- [x] Structured logs for every phase (`SHOWDOWN_SYNC_STARTED`, `SHOWDOWN_UPDATE_AVAILABLE`, ..., `SHOWDOWN_ROLLBACK_COMPLETED`).
+- [x] Admin API (`X-Admin-Token`): `GET /admin/showdown/status`, `POST /admin/showdown/check`, `POST /admin/showdown/sync`, `POST /admin/showdown/rollback`.
+- [x] Documentation: `documentation/DATA_SOURCES.md` (MIT attribution + architecture).
+- [ ] Scheduler (6h default) — infrastructure ready, runner to be wired.
+- [ ] Real clone + importer + normalizer (gated behind `SHOWDOWN_ENABLE_CLONE`).
+
+**Phase 4b — Other adapters (planned, not started)**
+
+Each adapter will follow the same isolation contract (own history collection, own dataset dir, own license entry in `DATA_SOURCES.md`):
 
 1. `PikalyticsAdapter` — usage %, top items, top moves per Pokemon.
 2. `MunchStatsAdapter` — refined usage + core detection.
@@ -66,8 +81,6 @@ Every adapter must:
 - Cache raw responses.
 - Persist results linked to a `DataSource` row for provenance.
 - Never leak vendor-specific fields upstream.
-
-Scheduled ingestion via a lightweight job runner.
 
 ---
 

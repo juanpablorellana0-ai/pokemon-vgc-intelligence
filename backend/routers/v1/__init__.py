@@ -12,6 +12,7 @@ from . import (
     cores,
     sources,
     ai,
+    admin,
 )
 
 router = APIRouter(prefix="/v1")
@@ -27,3 +28,4 @@ router.include_router(meta.router)
 router.include_router(cores.router)
 router.include_router(sources.router)
 router.include_router(ai.router)
+router.include_router(admin.router)

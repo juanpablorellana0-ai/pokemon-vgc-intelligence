@@ -16,8 +16,15 @@ Ship the foundational architecture for a production-quality competitive Pokémon
   - `POST /api/v1/ai/coach/chat` — SSE streaming multi-turn VGC coaching chat.
   - `DELETE /api/v1/ai/coach/chat/{session_id}` — session reset.
   - `POST /api/v1/ai/analyze/team` — one-shot team analysis.
-- Documentation: `README.md`, `documentation/ROADMAP.md`.
-- Tests: backend health, DB connection, API surface.
+- **Pokémon Showdown sync infrastructure** in `backend/ingestion/showdown` (no data import yet):
+  - `ShowdownSyncService` — full versioned pipeline (check → fetch → validate → tests → activate).
+  - Mongo advisory lock (`showdown_sync_lock`) — concurrent syncs impossible.
+  - Rollback to previous known-good dataset.
+  - Structured logs (`SHOWDOWN_SYNC_STARTED`, `SHOWDOWN_VALIDATION_FAILED`, …).
+  - Admin API protected by `X-Admin-Token`: `/admin/showdown/{status,check,sync,rollback}`.
+  - `documentation/DATA_SOURCES.md` with MIT attribution + architecture.
+- Documentation: `README.md`, `documentation/ROADMAP.md`, `documentation/DATA_SOURCES.md`.
+- Tests: backend health, DB connection, API surface, Showdown sync + admin protection (25 tests total).
 
 ## Out of scope (deferred)
 - Real data / ingestion.

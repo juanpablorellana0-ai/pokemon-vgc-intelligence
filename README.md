@@ -145,6 +145,10 @@ Base URL: `${EXPO_PUBLIC_BACKEND_URL}/api`
 | `POST /api/v1/ai/coach/chat` | SSE stream — VGC coaching chat (Claude Sonnet 5) |
 | `DELETE /api/v1/ai/coach/chat/{session_id}` | Reset a chat session |
 | `POST /api/v1/ai/analyze/team` | Non-streaming team analysis (Claude Sonnet 5) |
+| `GET /api/v1/admin/showdown/status`   | Admin-only — data health for Showdown sync |
+| `POST /api/v1/admin/showdown/check`   | Admin-only — peek at upstream HEAD          |
+| `POST /api/v1/admin/showdown/sync`    | Admin-only — run the sync pipeline          |
+| `POST /api/v1/admin/showdown/rollback`| Admin-only — restore previous dataset       |
 
 FastAPI's interactive docs are available at `/docs`.
 
