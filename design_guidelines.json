@@ -1,0 +1,149 @@
+{
+  "app_name": "VGC Intelligence",
+  "personality": "7 Dark-First Utility (Esports/Analytics Variant)",
+  "personality_one_liner": "A high-performance, command-center interface that feels like professional esports analytics software—sharp, data-driven, and authoritative.",
+  "color": {
+    "surface": "#0B0E14",
+    "onSurface": "#F1F5F9",
+    "surfaceSecondary": "#151A23",
+    "onSurfaceSecondary": "#94A3B8",
+    "surfaceTertiary": "#1E2532",
+    "onSurfaceTertiary": "#CBD5E1",
+    "surfaceInverse": "#F8FAFC",
+    "onSurfaceInverse": "#0B0E14",
+    "brand": "#4F46E5",
+    "brandPrimary": "#6366F1",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#8B5CF6",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#1E1B4B",
+    "onBrandTertiary": "#A5B4FC",
+    "success": "#10B981",
+    "onSuccess": "#000000",
+    "warning": "#F59E0B",
+    "onWarning": "#000000",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "info": "#3B82F6",
+    "onInfo": "#FFFFFF",
+    "border": "#1E293B",
+    "borderStrong": "#334155",
+    "divider": "#1E293B"
+  },
+  "typography": {
+    "displayFontFamily": "Rajdhani",
+    "textFontFamily": "Inter",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Use intentional padding around content blocks to separate data visually. Keep spacing tight within components for information density, but generous between separate modular widgets.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "0",
+  "navigation": "bottom_tabs_with_menu",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": [
+      "Use solid dark surfaces (surfaceSecondary/surfaceTertiary) instead of glass for maximum readability and performance, fitting the utility/esports aesthetic."
+    ],
+    "dont's": [
+      "Do not use blur/glass on cards, modal backgrounds, or general headers. Rely on solid colors and borders for elevation."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Home",
+      "purpose": "A modular dashboard hub providing quick access to all key sections and high-level platform status.",
+      "states": {
+        "loading": "Centered sleek spinner matching brandPrimary.",
+        "empty": "N/A for hub.",
+        "error": "Readable error message with a retry button centered on screen."
+      },
+      "layout": "Top Header with Logo/Title. Main body consists of modular cards for 'Featured Meta', 'Upcoming Tournaments', and 'Recent Teams' acting as entry points. Use a 4-tab Bottom Tab Bar: Home, Meta, Tournaments, Menu."
+    },
+    {
+      "name": "Meta",
+      "purpose": "Placeholder for competitive metagame analytics.",
+      "states": {
+        "loading": "Skeleton loaders for stat rows.",
+        "empty": "'Coming Soon' state featuring an abstract tech data visualization illustration, a brief descriptive text of what's coming, and a primary CTA to return home.",
+        "error": "Standard error block."
+      },
+      "layout": "List-based structure inside surfaceSecondary cards, currently locked in a 'Coming Soon' state."
+    },
+    {
+      "name": "Tournaments",
+      "purpose": "Placeholder for tournament list and bracket browser.",
+      "states": {
+        "loading": "Skeleton tournament cards.",
+        "empty": "'Coming Soon' state featuring a dark esports arena background illustration.",
+        "error": "Standard error block."
+      },
+      "layout": "Grid or vertical list of tournament cards with date/status badges."
+    },
+    {
+      "name": "Menu (More)",
+      "purpose": "A navigation hub for secondary tools (Team Builder, Damage Calc, Analyzer, VGC Guide) that don't fit in the bottom tabs.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "A sleek vertical list of large navigation tiles/rows. Each row should have a leading icon, a title, a brief description, and a trailing chevron."
+    }
+  ],
+  "images": {
+    "hero_stadium": {
+      "url": "https://images.unsplash.com/photo-1778957489702-6455b42cf3eb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHw0fHxlc3BvcnRzJTIwc3RhZGl1bSUyMGRhcmslMjBhcmVuYXxlbnwwfHx8fDE3ODc3Njk2MzZ8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Dark esports stadium arena at night"
+    },
+    "coming_soon_data": {
+      "url": "https://images.unsplash.com/photo-1689443111130-6e9c7dfd8f9e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGdlb21ldHJpYyUyMGRhcmslMjBjeWJlciUyMGJhY2tncm91bmQlMjBwdXJwbGV8ZW58MHx8fHwxNzg3NzY5NjM2fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract purple geometric cyber design"
+    },
+    "coming_soon_tech": {
+      "url": "https://images.unsplash.com/photo-1762279388956-1c098163a2a8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhdGElMjB2aXN1YWxpemF0aW9uJTIwZGFyayUyMGJsdWV8ZW58MHx8fHwxNzg3NzY5NjM2fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract neon data lines forming a digital landscape"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Build the foundation of VGC Intelligence using a rigid, professional esports layout inspired by Faceit/Liquipedia. Avoid playful, rounded UI or childish graphics.",
+    "Implement navigation using a Bottom Tab Bar with 4 items: Home, Meta, Tournaments, and 'Menu'.",
+    "The 'Menu' tab should open a screen containing navigation rows for the remaining 5 sections (Teams, Team Builder, Damage Calculator, Analyzer, VGC Guide).",
+    "Use Rajdhani for all numbers, metrics, and major headings to give it a technical HUD feel. Use Inter for standard readable UI copy.",
+    "All placeholder screens (Meta, Tournaments, etc.) MUST show a well-designed 'Coming Soon' empty state. These should fill the screen flex:1, feature an abstract dark background image (from the images object) overlayed with a gradient-to-dark scrim, a descriptive text, and a primary call-to-action button.",
+    "Do not use glassmorphism. Use solid dark colors (surface, surfaceSecondary) and subtle 1px borders (border, borderStrong) to separate elements and ensure maximum data legibility.",
+    "Ensure all interactive elements have haptic feedback connected to their onPress events."
+  ]
+}
