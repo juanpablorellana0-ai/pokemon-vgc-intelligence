@@ -1,12 +1,21 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from db import get_db
-from models import Item
+from ._query import paged_list
 
 router = APIRouter(prefix="/items", tags=["items"])
 
 
-@router.get("", response_model=list[Item])
-async def list_items():
-    db = get_db()
-    docs = await db.items.find({}, {"_id": 0}).to_list(1000)
-    return [Item(**d) for d in docs]
+@router.get("")
+async def list_items(
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    q: str | None = None,
+):
+    filt: dict = {}
+    if q:
+        filt["name"] = {"$regex": q, "$options": "i"}
+    return await paged_list(
+        get_db(), "sd_items",
+        limit=limit, offset=offset,
+        extra_filter=filt, sort=[("name", 1)],
+    )

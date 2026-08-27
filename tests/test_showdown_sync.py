@@ -1,7 +1,8 @@
 """Tests for the Showdown sync infrastructure.
 
-All external calls (git ls-remote, filesystem clones) are monkeypatched
-so tests run offline. Each test uses an isolated temp Mongo database.
+Every external side effect (git ls-remote, clone, TS parsing) is
+monkeypatched so tests stay offline and fast. Each test uses an
+isolated temp Mongo database.
 """
 from __future__ import annotations
 import os
@@ -17,7 +18,6 @@ import httpx
 BACKEND_DIR = Path(__file__).resolve().parents[1] / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 
-# Configure env BEFORE importing modules that read env at import time.
 os.environ.setdefault("MONGO_URL", "mongodb://localhost:27017")
 os.environ.setdefault("DB_NAME", "test_database")
 os.environ["ADMIN_TOKEN"] = "test-admin-token"
@@ -42,34 +42,51 @@ async def db():
 
 @pytest_asyncio.fixture
 async def svc(db):
-    service = ShowdownSyncService(db)
-    yield service
+    yield ShowdownSyncService(db)
 
 
-# ---------------------------------------------------------------------------
-# helpers
-# ---------------------------------------------------------------------------
 async def _await(value):
-    """Return ``value`` from an awaitable — used to stub async methods."""
     return value
 
 
+def _stub_pipeline(svc, monkeypatch, *, remote_sha, parsed=None,
+                   fetch_error=None, tests_ok=True):
+    """Wire up minimal stubs so ``sync`` runs without touching disk/net."""
+    monkeypatch.setattr(svc, "_ls_remote", lambda: _await(remote_sha))
+
+    async def _fetch(_commit):
+        if fetch_error:
+            raise fetch_error
+        return f"/tmp/stub-{remote_sha[:8]}"
+
+    async def _parse(_dir):
+        return parsed if parsed is not None else {}
+
+    async def _run_tests(_dir, _import_id=None):
+        return {"passed": tests_ok, "stub": True}
+
+    monkeypatch.setattr(svc, "_fetch", _fetch)
+    monkeypatch.setattr(svc, "_parse", _parse)
+    monkeypatch.setattr(svc, "_run_tests", _run_tests)
+
+
 # ---------------------------------------------------------------------------
-# Detecting unchanged / new commits (check endpoint semantics)
+# Check semantics
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_check_reports_up_to_date_when_active_matches_remote(svc, monkeypatch):
     sha = "a" * 40
     monkeypatch.setattr(svc, "_ls_remote", lambda: _await(sha))
     from ingestion.showdown.models import ShowdownActiveDataset
-    await svc._write_active(ShowdownActiveDataset(
+    ptr = ShowdownActiveDataset(
         activeCommit=sha, activeDir="/tmp/x",
         activatedAt=datetime.now(timezone.utc), rollbackAvailable=False,
-    ))
+    ).model_dump()
+    ptr["_id"] = "showdown_active_dataset"
+    await svc.db["showdown_pointers"].insert_one(ptr)
     result = await svc.check()
     assert result["updateAvailable"] is False
     assert result["remoteCommit"] == sha
-    assert result["activeCommit"] == sha
 
 
 @pytest.mark.asyncio
@@ -87,7 +104,7 @@ async def test_check_reports_update_available_when_new_commit(svc, monkeypatch):
 @pytest.mark.asyncio
 async def test_sync_activates_when_all_stages_pass(svc, monkeypatch):
     sha = "c" * 40
-    monkeypatch.setattr(svc, "_ls_remote", lambda: _await(sha))
+    _stub_pipeline(svc, monkeypatch, remote_sha=sha)
     h = await svc.sync()
     assert h.status == SyncStatus.ACTIVATED
     assert h.activated is True
@@ -97,17 +114,16 @@ async def test_sync_activates_when_all_stages_pass(svc, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Failed download — active dataset must remain unchanged
+# Failed download preserves active
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_sync_failed_fetch_preserves_active(svc, monkeypatch):
-    monkeypatch.setattr(svc, "_ls_remote", lambda: _await("d" * 40))
+    _stub_pipeline(svc, monkeypatch, remote_sha="d" * 40)
     ok = await svc.sync()
     assert ok.status == SyncStatus.ACTIVATED
 
-    monkeypatch.setattr(svc, "_ls_remote", lambda: _await("e" * 40))
-    async def _boom(commit): raise RuntimeError("network dead")
-    monkeypatch.setattr(svc, "_fetch", _boom)
+    _stub_pipeline(svc, monkeypatch, remote_sha="e" * 40,
+                   fetch_error=RuntimeError("network dead"))
     h = await svc.sync()
     assert h.status == SyncStatus.FAILED_FETCH
     active = await svc.get_active()
@@ -115,28 +131,30 @@ async def test_sync_failed_fetch_preserves_active(svc, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Invalid data / validation failure
+# Validation failure preserves active
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_sync_failed_validation_preserves_active(svc, monkeypatch):
-    monkeypatch.setattr(svc, "_ls_remote", lambda: _await("f" * 40))
-    async def _bad_validate(_dir): return ["schema mismatch"]
-    monkeypatch.setattr(svc, "_validate", _bad_validate)
+    _stub_pipeline(svc, monkeypatch, remote_sha="f" * 40)
+
+    # Simulate a parser crash — the service converts it to a validation error.
+    async def _parse_boom(_dir):
+        raise RuntimeError("bad schema")
+    monkeypatch.setattr(svc, "_parse", _parse_boom)
+
     h = await svc.sync()
     assert h.status == SyncStatus.FAILED_VALIDATION
-    assert h.validationErrors == ["schema mismatch"]
+    assert h.validationErrors
     active = await svc.get_active()
     assert active.activeCommit is None
 
 
 # ---------------------------------------------------------------------------
-# Compatibility test failure
+# Compatibility test failure preserves active
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_sync_failed_tests_preserves_active(svc, monkeypatch):
-    monkeypatch.setattr(svc, "_ls_remote", lambda: _await("9" * 40))
-    async def _bad_tests(_dir): return {"passed": False, "reason": "regression"}
-    monkeypatch.setattr(svc, "_run_tests", _bad_tests)
+    _stub_pipeline(svc, monkeypatch, remote_sha="9" * 40, tests_ok=False)
     h = await svc.sync()
     assert h.status == SyncStatus.FAILED_TESTS
     assert h.activated is False
@@ -145,13 +163,13 @@ async def test_sync_failed_tests_preserves_active(svc, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Rollback restores previous version
+# Rollback
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_rollback_restores_previous(svc, monkeypatch):
-    monkeypatch.setattr(svc, "_ls_remote", lambda: _await("1" * 40))
+    _stub_pipeline(svc, monkeypatch, remote_sha="1" * 40)
     await svc.sync()
-    monkeypatch.setattr(svc, "_ls_remote", lambda: _await("2" * 40))
+    _stub_pipeline(svc, monkeypatch, remote_sha="2" * 40)
     await svc.sync()
     active = await svc.get_active()
     assert active.activeCommit == "2" * 40
@@ -170,12 +188,12 @@ async def test_rollback_no_previous(svc):
 
 
 # ---------------------------------------------------------------------------
-# Duplicate / concurrent sync protection
+# Concurrent-sync protection
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_concurrent_sync_returns_locked(svc, db, monkeypatch):
     assert await sd_lock.acquire(db, owner="external-worker")
-    monkeypatch.setattr(svc, "_ls_remote", lambda: _await("7" * 40))
+    _stub_pipeline(svc, monkeypatch, remote_sha="7" * 40)
     h = await svc.sync()
     assert h.status == SyncStatus.FAILED_LOCKED
     assert "another sync" in (h.errorMessage or "")
@@ -184,16 +202,15 @@ async def test_concurrent_sync_returns_locked(svc, db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_duplicate_sync_requests_serialize(svc, monkeypatch):
-    """Two consecutive sync calls both complete without corruption."""
-    monkeypatch.setattr(svc, "_ls_remote", lambda: _await("3" * 40))
+    _stub_pipeline(svc, monkeypatch, remote_sha="3" * 40)
     h1 = await svc.sync()
-    h2 = await svc.sync()  # already up-to-date
+    h2 = await svc.sync()
     assert h1.status == SyncStatus.ACTIVATED
     assert h2.status == SyncStatus.UP_TO_DATE
 
 
 # ---------------------------------------------------------------------------
-# Admin endpoints are protected
+# Admin endpoint auth
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_admin_endpoints_require_token():

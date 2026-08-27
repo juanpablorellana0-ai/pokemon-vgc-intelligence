@@ -53,16 +53,25 @@ Ingest offline-safe, canonical data first so downstream layers can be built with
 
 **Phase 4a — Pokémon Showdown sync infrastructure (delivered)**
 
-- [x] `ShowdownSyncService` with the full pipeline: `check → compare → fetch → validate → tests → activate`.
-- [x] Versioned dataset directories (`showdown_dataset_<sha[:12]>`) — active is never overwritten before validation passes.
+- [x] `ShowdownSyncService` with the full pipeline: `check → compare → fetch → parse → normalize → validate → tests → activate`.
+- [x] Versioned dataset directories (`showdown_dataset_<sha[:12]>`) + versioned Mongo docs via `import_id` — active is never overwritten before validation passes.
 - [x] Rollback pointer to the previous known-good dataset.
 - [x] Mongo advisory lock — two sync jobs can never run at once.
-- [x] `showdown_sync_history` collection (id, commits, timings, records, validation errors, test results, activation, error, importer + app version).
-- [x] Structured logs for every phase (`SHOWDOWN_SYNC_STARTED`, `SHOWDOWN_UPDATE_AVAILABLE`, ..., `SHOWDOWN_ROLLBACK_COMPLETED`).
-- [x] Admin API (`X-Admin-Token`): `GET /admin/showdown/status`, `POST /admin/showdown/check`, `POST /admin/showdown/sync`, `POST /admin/showdown/rollback`.
-- [x] Documentation: `documentation/DATA_SOURCES.md` (MIT attribution + architecture).
+- [x] `showdown_sync_history` collection with the full spec fields.
+- [x] Structured logs for every phase.
+- [x] Admin API (`X-Admin-Token`): `check`, `sync` (accepts `?commit=<sha>`), `rollback`, `status`.
+- [x] Documentation: `documentation/DATA_SOURCES.md` (MIT attribution + architecture + imported categories).
+
+**Phase 4a.1 — First canonical Showdown import (delivered — this phase)**
+
+- [x] Real anonymous clone of the public repo (no credentials).
+- [x] Node-side parser transpiling Showdown TS → JSON via esbuild (RAW SNAPSHOT preserved on disk and in `sd_raw`).
+- [x] Python normalizers for: pokemon (+ forms + cosmetic formes with inheritance), moves, abilities, items, natures, types, type chart, learnsets, formats, rulesets, Champions overlay.
+- [x] Cross-reference validation; unknown-type / unknown-move references are logged as rejects (not silent drops).
+- [x] Compatibility smoke tests read values FROM the imported dataset — no hardcoded competitive numbers.
+- [x] Read API with pagination + filters: `/pokemon`, `/pokemon/{id}`, `/moves`, `/abilities`, `/items`, `/natures`, `/types`, `/types/chart`, `/formats`, `/rulesets`, `/regulations`.
+- [x] Every list endpoint filters by the active `import_id`.
 - [ ] Scheduler (6h default) — infrastructure ready, runner to be wired.
-- [ ] Real clone + importer + normalizer (gated behind `SHOWDOWN_ENABLE_CLONE`).
 
 **Phase 4b — Other adapters (planned, not started)**
 

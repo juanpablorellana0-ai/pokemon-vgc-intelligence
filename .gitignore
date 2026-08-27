@@ -86,3 +86,5 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+backend/.showdown_datasets/showdown_dataset_bb179fbf8449/repo/.git/objects/pack/pack-46df09febbd99d2ebb30c1e1f61f7acf51bed153.pack
+backend/.showdown_datasets/showdown_dataset_5e8ead64b366/repo/.git/objects/pack/pack-e6a2d290247cc09aadf25f81d6d44bee0956309d.pack

@@ -10,17 +10,12 @@ The service NEVER overwrites the active dataset until validation and
 tests pass. On failure the previously active dataset stays active.
 On success the previous version is kept as the rollback candidate.
 
-This module does NOT import the Showdown dataset yet — ``_fetch`` only
-records the commit and creates a dataset directory placeholder. Actual
-cloning is gated behind ``SHOWDOWN_ENABLE_CLONE`` for future phases.
-
-Every heavy step (``_ls_remote``, ``_fetch``, ``_validate``, ``_run_tests``)
-is a method so tests can monkeypatch it independently.
+Each import has a unique ``import_id`` (=history id). Normalized data is
+written to Mongo carrying that ``import_id``; the active pointer stores
+the currently active id. Rollback flips the pointer back.
 """
 from __future__ import annotations
 import asyncio
-import os
-import shutil
 import subprocess
 import uuid
 from datetime import datetime, timezone
@@ -47,6 +42,7 @@ from .logger import (
     EVT_ERROR,
 )
 from .models import ShowdownSyncHistory, SyncStatus, ShowdownActiveDataset
+from . import parser_bridge, importer
 
 ACTIVE_POINTER_ID = "showdown_active_dataset"
 HISTORY_COLLECTION = "showdown_sync_history"
@@ -79,8 +75,13 @@ class ShowdownSyncService:
             "updateAvailable": update_available,
         }
 
-    async def sync(self, force: bool = False) -> ShowdownSyncHistory:
-        """Full pipeline. Idempotent when up-to-date unless ``force``."""
+    async def sync(self, force: bool = False, pin_commit: Optional[str] = None) -> ShowdownSyncHistory:
+        """Full pipeline. Idempotent when up-to-date unless ``force``.
+
+        If ``pin_commit`` is provided, that exact SHA is used instead of
+        the remote HEAD — the connectivity check may return a different
+        commit than the one that should be canonically imported.
+        """
         owner = str(uuid.uuid4())
         started_at = datetime.now(timezone.utc)
         history = ShowdownSyncHistory(
@@ -104,7 +105,7 @@ class ShowdownSyncService:
             active = await self.get_active()
             history.previousCommit = active.activeCommit
 
-            remote = await self._ls_remote()
+            remote = pin_commit or await self._ls_remote()
             history.newCommit = remote
 
             if not remote:
@@ -130,20 +131,30 @@ class ShowdownSyncService:
 
             log(EVT_VALIDATION_STARTED, commit=remote)
             try:
-                errors = await self._validate(dataset_dir)
+                parsed = await self._parse(dataset_dir)
+                report = await importer.normalize_and_store(
+                    self.db, parsed, import_id=history.id,
+                )
+                errors = report.validation_errors
+                history.recordsDiscovered = sum(report.counts.values())
+                history.recordsImported = sum(report.counts.values())
+                history.recordsRejected = report.total_rejected()
             except Exception as exc:  # noqa: BLE001
                 errors = [f"validator crashed: {exc}"]
+                report = None
             history.validationErrors = errors
             if errors:
                 history.status = SyncStatus.FAILED_VALIDATION
                 history.errorMessage = "validation failed"
-                log(EVT_VALIDATION_FAILED, errors=errors, commit=remote)
+                log(EVT_VALIDATION_FAILED, errors=errors[:5], commit=remote)
+                # Roll back partial import for this import_id.
+                await importer.wipe_import(self.db, history.id)
                 return history
             history.status = SyncStatus.VALIDATED
 
             log(EVT_TESTS_STARTED, commit=remote)
             try:
-                results = await self._run_tests(dataset_dir)
+                results = await self._run_tests(dataset_dir, history.id)
             except Exception as exc:  # noqa: BLE001
                 results = {"error": f"tests crashed: {exc}", "passed": False}
             history.testResults = results
@@ -151,13 +162,17 @@ class ShowdownSyncService:
                 history.status = SyncStatus.FAILED_TESTS
                 history.errorMessage = "compatibility tests failed"
                 log(EVT_TESTS_FAILED, results=results, commit=remote)
+                # Do not activate — wipe this import's docs so nothing lingers.
+                await importer.wipe_import(self.db, history.id)
                 return history
             history.status = SyncStatus.TESTED
 
-            await self._activate(remote, dataset_dir, previous=active)
+            await self._activate(remote, dataset_dir, previous=active,
+                                 import_id=history.id)
             history.status = SyncStatus.ACTIVATED
             history.activated = True
-            log(EVT_VERSION_ACTIVATED, commit=remote, dir=dataset_dir)
+            log(EVT_VERSION_ACTIVATED, commit=remote, dir=dataset_dir,
+                import_id=history.id)
             return history
         finally:
             history.completedAt = datetime.now(timezone.utc)
@@ -173,19 +188,26 @@ class ShowdownSyncService:
         if not active.rollbackAvailable or not active.previousCommit:
             return {"rolled_back": False, "reason": "no previous version"}
 
-        log(EVT_ROLLBACK_STARTED, from_commit=active.activeCommit, to_commit=active.previousCommit)
+        log(EVT_ROLLBACK_STARTED, from_commit=active.activeCommit,
+            to_commit=active.previousCommit)
 
-        new_active = ShowdownActiveDataset(
-            activeCommit=active.previousCommit,
-            activeDir=active.previousDir,
-            activatedAt=datetime.now(timezone.utc),
-            previousCommit=active.activeCommit,   # keep for redo
-            previousDir=active.activeDir,
-            rollbackAvailable=True,
+        prev_import = getattr(active, "previousImportId", None)
+        curr_import = getattr(active, "activeImportId", None)
+        new_doc = {
+            "_id": ACTIVE_POINTER_ID,
+            "activeCommit": active.previousCommit,
+            "activeDir": active.previousDir,
+            "activatedAt": datetime.now(timezone.utc),
+            "previousCommit": active.activeCommit,
+            "previousDir": active.activeDir,
+            "rollbackAvailable": True,
+            "activeImportId": prev_import,
+            "previousImportId": curr_import,
+        }
+        await self.db[POINTERS_COLLECTION].replace_one(
+            {"_id": ACTIVE_POINTER_ID}, new_doc, upsert=True,
         )
-        await self._write_active(new_active)
 
-        # Record in history
         h = ShowdownSyncHistory(
             repositoryUrl=config.repo_url(),
             branch=config.branch(),
@@ -198,11 +220,11 @@ class ShowdownSyncService:
             appVersion=config.app_version(),
         )
         await self._persist_history(h)
-        log(EVT_ROLLBACK_COMPLETED, active=new_active.activeCommit)
+        log(EVT_ROLLBACK_COMPLETED, active=active.previousCommit)
         return {
             "rolled_back": True,
-            "activeCommit": new_active.activeCommit,
-            "previousCommit": new_active.previousCommit,
+            "activeCommit": active.previousCommit,
+            "previousCommit": active.activeCommit,
         }
 
     async def status(self) -> dict:
@@ -256,9 +278,9 @@ class ShowdownSyncService:
     async def _fetch(self, commit: str) -> str:
         """Materialize a dataset directory for ``commit`` and return its path.
 
-        In this phase we do NOT clone by default — only create a marker
-        directory recording the commit. Enable cloning by setting
-        ``SHOWDOWN_ENABLE_CLONE=1`` in a future phase.
+        Clones the public Showdown repo at the exact commit SHA when
+        ``SHOWDOWN_ENABLE_CLONE`` is enabled. The cloned tree is the RAW
+        SNAPSHOT preserved on disk and reused as-is for parsing.
         """
         root = Path(config.datasets_dir())
         root.mkdir(parents=True, exist_ok=True)
@@ -271,24 +293,45 @@ class ShowdownSyncService:
             % (commit, config.branch(), "true" if config.clone_enabled() else "false")
         )
 
-        if config.clone_enabled():
-            # Reserved for a future phase — kept minimal on purpose.
-            def _clone():
+        repo_dir = dataset_dir / "repo"
+        if config.clone_enabled() and not (repo_dir / ".git").is_dir():
+            def _clone_at_sha() -> None:
+                # Anonymous clone of a public repo, then checkout the exact SHA
+                # so the dataset is deterministic (never blindly "latest").
                 subprocess.run(
-                    ["git", "clone", "--depth", "1", "--branch", config.branch(),
-                     config.repo_url(), str(dataset_dir / "repo")],
-                    capture_output=True, check=True, timeout=180,
+                    ["git", "clone", "--quiet", config.repo_url(), str(repo_dir)],
+                    capture_output=True, check=True, timeout=300,
                 )
-            await asyncio.get_running_loop().run_in_executor(None, _clone)
+                subprocess.run(
+                    ["git", "-C", str(repo_dir), "checkout", "--quiet", commit],
+                    capture_output=True, check=True, timeout=60,
+                )
+            await asyncio.get_running_loop().run_in_executor(None, _clone_at_sha)
 
         return str(dataset_dir)
 
-    async def _validate(self, dataset_dir: str) -> list[str]:
-        """Return a list of validation errors. Empty = pass.
+    async def _parse(self, dataset_dir: str) -> dict:
+        """Invoke the Node parser and return the parsed data dict."""
+        repo_dir = Path(dataset_dir) / "repo"
+        if not repo_dir.is_dir():
+            raise RuntimeError(f"repo not present at {repo_dir}")
 
-        Foundation-phase validator only checks that the dataset directory
-        exists and has a MANIFEST. Real schema validation ships with the
-        actual importer.
+        def _do():
+            return parser_bridge.parse_repo(str(repo_dir), dataset_dir)
+
+        result, errors = await asyncio.get_running_loop().run_in_executor(None, _do)
+        if errors and any(v and v != "file not present" for v in errors.values()):
+            log(EVT_ERROR, reason="parser reported per-file errors",
+                errors={k: v for k, v in errors.items() if v})
+        return result
+
+    async def _validate(self, dataset_dir: str) -> list[str]:
+        """Legacy hook — kept for callers/tests that stub this directly.
+
+        The real validation now happens inside
+        :func:`importer.normalize_and_store` and its result is threaded
+        through the ``sync`` flow. This method just checks the on-disk
+        layout for callers that need a lightweight check.
         """
         errors: list[str] = []
         p = Path(dataset_dir)
@@ -298,25 +341,29 @@ class ShowdownSyncService:
             errors.append("MANIFEST.json missing")
         return errors
 
-    async def _run_tests(self, dataset_dir: str) -> dict:
-        """Run compatibility tests against the fetched dataset.
+    async def _run_tests(self, dataset_dir: str, import_id: str | None = None) -> dict:
+        """Compatibility tests against persisted data.
 
-        Foundation-phase stub — returns ``passed: true`` if the manifest
-        loads. Real tests ship with the importer.
+        When ``import_id`` is provided we run the full smoke suite over
+        the imported docs. Otherwise fall back to a manifest-only check
+        (used by legacy tests that stub the fetch pipeline).
         """
-        try:
-            import json as _json
-            m = Path(dataset_dir) / "MANIFEST.json"
-            data = _json.loads(m.read_text())
-            return {"passed": True, "manifest": data}
-        except Exception as exc:  # noqa: BLE001
-            return {"passed": False, "error": str(exc)}
+        if import_id is None:
+            try:
+                import json as _json
+                m = Path(dataset_dir) / "MANIFEST.json"
+                data = _json.loads(m.read_text())
+                return {"passed": True, "manifest": data}
+            except Exception as exc:  # noqa: BLE001
+                return {"passed": False, "error": str(exc)}
+        return await importer.smoke_tests(self.db, import_id)
 
     # ------------------------------------------------------------------
     # Pointer + history persistence
     # ------------------------------------------------------------------
     async def _activate(self, commit: str, dataset_dir: str,
-                        previous: ShowdownActiveDataset) -> None:
+                        previous: ShowdownActiveDataset,
+                        import_id: str) -> None:
         new = ShowdownActiveDataset(
             activeCommit=commit,
             activeDir=dataset_dir,
@@ -325,7 +372,15 @@ class ShowdownSyncService:
             previousDir=previous.activeDir,
             rollbackAvailable=bool(previous.activeCommit),
         )
-        await self._write_active(new)
+        # Attach the active import_id in the pointer document so read
+        # endpoints can filter by it directly.
+        doc = new.model_dump()
+        doc["activeImportId"] = import_id
+        doc["previousImportId"] = getattr(previous, "activeImportId", None)
+        doc["_id"] = ACTIVE_POINTER_ID
+        await self.db[POINTERS_COLLECTION].replace_one(
+            {"_id": ACTIVE_POINTER_ID}, doc, upsert=True,
+        )
 
     async def _write_active(self, ptr: ShowdownActiveDataset) -> None:
         doc = ptr.model_dump()
@@ -340,7 +395,19 @@ class ShowdownSyncService:
         )
         if not doc:
             return ShowdownActiveDataset()
-        return ShowdownActiveDataset(**doc)
+        # Preserve import ids on the returned object (as ad-hoc attributes)
+        import_id = doc.pop("activeImportId", None)
+        prev_import_id = doc.pop("previousImportId", None)
+        obj = ShowdownActiveDataset(**doc)
+        object.__setattr__(obj, "activeImportId", import_id)
+        object.__setattr__(obj, "previousImportId", prev_import_id)
+        return obj
+
+    async def get_active_import_id(self) -> Optional[str]:
+        doc = await self.db[POINTERS_COLLECTION].find_one(
+            {"_id": ACTIVE_POINTER_ID}, {"_id": 0, "activeImportId": 1},
+        )
+        return (doc or {}).get("activeImportId")
 
     async def _persist_history(self, h: ShowdownSyncHistory) -> None:
         doc = h.model_dump()

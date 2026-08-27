@@ -43,8 +43,8 @@ async def showdown_check():
 
 
 @router.post("/showdown/sync", dependencies=[Depends(require_admin)])
-async def showdown_sync(force: bool = False):
-    history = await _service().sync(force=force)
+async def showdown_sync(force: bool = False, commit: str | None = None):
+    history = await _service().sync(force=force, pin_commit=commit)
     return history.model_dump()
 
 

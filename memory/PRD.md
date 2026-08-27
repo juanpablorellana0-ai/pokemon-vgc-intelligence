@@ -16,15 +16,19 @@ Ship the foundational architecture for a production-quality competitive Pokémon
   - `POST /api/v1/ai/coach/chat` — SSE streaming multi-turn VGC coaching chat.
   - `DELETE /api/v1/ai/coach/chat/{session_id}` — session reset.
   - `POST /api/v1/ai/analyze/team` — one-shot team analysis.
-- **Pokémon Showdown sync infrastructure** in `backend/ingestion/showdown` (no data import yet):
-  - `ShowdownSyncService` — full versioned pipeline (check → fetch → validate → tests → activate).
+- **Pokémon Showdown data pipeline** in `backend/ingestion/showdown` (Phase 2B — canonical import):
+  - `ShowdownSyncService` — versioned pipeline (check → clone → parse → normalize → validate → tests → activate).
+  - Node parser (`parser/parse.mjs`) using esbuild to transpile Showdown's TS data files.
+  - Python normalizers for pokemon/forms/moves/abilities/items/natures/types/typechart/learnsets/formats/rulesets + Champions overlay.
+  - RAW snapshot preserved on disk **and** in `sd_raw` collection.
   - Mongo advisory lock (`showdown_sync_lock`) — concurrent syncs impossible.
-  - Rollback to previous known-good dataset.
-  - Structured logs (`SHOWDOWN_SYNC_STARTED`, `SHOWDOWN_VALIDATION_FAILED`, …).
+  - Rollback to previous known-good dataset via pointer.
+  - Structured logs for every phase.
   - Admin API protected by `X-Admin-Token`: `/admin/showdown/{status,check,sync,rollback}`.
-  - `documentation/DATA_SOURCES.md` with MIT attribution + architecture.
+  - Public read API: `/pokemon(/id)`, `/moves`, `/abilities`, `/items`, `/natures`, `/types(/chart)`, `/formats`, `/rulesets`, `/regulations` — all paginated, all filter by active `import_id`.
+  - Initial canonical import active at commit `5e8ead64b366aa55b83be979dd3d1050115e8bfe`.
 - Documentation: `README.md`, `documentation/ROADMAP.md`, `documentation/DATA_SOURCES.md`.
-- Tests: backend health, DB connection, API surface, Showdown sync + admin protection (25 tests total).
+- Tests: 34 total (foundation health, API surface, showdown sync stubs, live imported data).
 
 ## Out of scope (deferred)
 - Real data / ingestion.
