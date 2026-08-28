@@ -178,4 +178,18 @@ The repository's GitHub `main` branch is the final source of truth.
 
 ---
 
+## 9. Showdown Sync Pipeline — Runtime Dependencies
+
+The Showdown ingestion pipeline (`backend/ingestion/showdown/`) shells out to three system tools that MUST be present in the backend image (`backend/Dockerfile.base44`):
+
+- **`git`** — `service._ls_remote()` runs `git ls-remote` to read the remote HEAD; `_fetch()` runs `git clone` + `git checkout` when `SHOWDOWN_ENABLE_CLONE=1`.
+- **`node`** — `parser_bridge.parse_repo()` runs `node parse.mjs` to parse Showdown's `.ts` data files.
+- **`esbuild`** — `parse.mjs` transpiles Showdown TypeScript data files to JS before dynamic import.
+
+If any of these is missing, `check()` silently reports `remoteCommit: null` ("could not determine remote commit") and `sync()` fails at the fetch/parse stage — with no obvious error in the API response. The `python:3.12-slim` base image ships none of them, so they are installed in the Dockerfile. Verify with `git --version && node --version && esbuild --version` inside the backend container.
+
+Default `SHOWDOWN_ENABLE_CLONE=0` means `_fetch` records the commit without cloning; set it to `1` to materialize the repo and run the full parse → validate → test → activate pipeline.
+
+---
+
 *Related documents: `frontend/FRONTEND_GUIDE.md` (designer onboarding), `documentation/ROADMAP.md` (development phases), `documentation/DATA_SOURCES.md` (data provenance and licensing).*

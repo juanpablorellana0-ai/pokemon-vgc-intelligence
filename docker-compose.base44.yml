@@ -1,0 +1,59 @@
+# Base44 dev environment for VGC Intelligence
+# Fullstack: Expo web (port 3000) + FastAPI (port 8000) + MongoDB
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: vgc_intelligence
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.base44
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8000:8001"
+    volumes:
+      - ./backend:/app/backend
+    env_file:
+      - ./.env.base44-defaults
+      - /run/base44/app.env
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=vgc_intelligence
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.base44
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+      - /app/frontend/.expo
+    env_file:
+      - ./.env.base44-defaults
+      - /run/base44/app.env
+    environment:
+      - EXPO_PUBLIC_BACKEND_URL=https://8000-${BASE44_PUBLIC_HOST_SUFFIX}
+      - BASE44_PUBLIC_HOST_SUFFIX=${BASE44_PUBLIC_HOST_SUFFIX}
+      - EXPO_NO_TELEMETRY=1
+
+volumes:
+  mongo_data:
