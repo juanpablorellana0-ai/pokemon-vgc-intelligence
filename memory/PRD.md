@@ -44,3 +44,6 @@ Ship the foundational architecture for a production-quality competitive Pokémon
 
 ## Documentation for designer (Jun 2026)
 - Created `frontend/FRONTEND_GUIDE.md` (Spanish): onboarding guide for Paola (designer). Covers product overview/vision, 13 product areas with real status, responsibilities, frontend architecture (Expo Router, theme tokens, i18n, components), API boundary with endpoint list (real vs empty), assets, git workflow (main / frontend/paola / emergent/development), design roadmap (Phases A–F), placeholder philosophy, dev rules (testIDs, i18n, protected files). Documentation-only task — no code/behavior changes.
+
+## Governance (Jun 2026)
+- Created root `/app/AGENTS.md`: permanent rules for AI agents. Branch architecture (main=protected source of truth, emergent/development=only writable branch for agents, frontend/paola=designer-owned untouchable), GitHub workflow (sync with main before major work, no force-push/deletes/resets, PRs to main never self-merged), designer-sensitive frontend areas, backend/frontend separation, code/data safety, testing & PR requirements, conflict behavior (safety first, stop and ask). Documentation-only — no code changes.
