@@ -47,3 +47,22 @@ Ship the foundational architecture for a production-quality competitive Pokémon
 
 ## Governance (Jun 2026)
 - Created root `/app/AGENTS.md`: permanent rules for AI agents. Branch architecture (main=protected source of truth, emergent/development=only writable branch for agents, frontend/paola=designer-owned untouchable), GitHub workflow (sync with main before major work, no force-push/deletes/resets, PRs to main never self-merged), designer-sensitive frontend areas, backend/frontend separation, code/data safety, testing & PR requirements, conflict behavior (safety first, stop and ask). Documentation-only — no code changes.
+
+## Phase 3A — Pokémon Data Explorer (Jun 2026) — DONE
+- Backend (reused existing router/conventions, no duplicates):
+  - `GET /api/v1/pokemon`: pagination envelope extended with `page`/`pages` (in shared `_query.paged_list`, applies to all list endpoints); filters: `q` (regex-escaped ci substring), `type` (ci exact), `ability` (ci exact over slots 0/1/H/S), `only_base`, `include_special` (default false → hides num<=0 CAP/Pokestar/MissingNo).
+  - `GET /api/v1/pokemon/{id}`: toID() normalization, base-species preference on dex-number lookups, learnset attached.
+  - NEW `GET /api/v1/pokemon/{id}/abilities` + `/{id}/moves` (single $in resolution, learn_sources included, `unresolved` reported).
+  - NEW `backend/indexes.py`: idempotent compound indexes (import_id-led) created at startup via server.py startup event.
+- Frontend placeholder (existing theme/i18n, designer can redesign):
+  - `/pokemon` list: debounced search, type chips (from /types), only-base chip, prev/next server pagination, loading/error/empty states.
+  - `/pokemon/[id]` detail: identity, stat bars, abilities (hidden badge), moves list, loading/error/404 states.
+  - `src/api/client.ts` typed fetch client (EXPO_PUBLIC_BACKEND_URL). Home tile (LIVE badge) + Menu row entries.
+- Tests: tests/test_pokemon_explorer.py (20 tests) → 54/54 pytest passing. Testing agent frontend E2E: 18/18 pass (iteration_2.json).
+- Docs: documentation/API.md (new), ROADMAP Phase 1 items checked.
+- Known canonical-data gaps (documented, not invented): no generation field, no per-Pokémon format legality, null desc/short_desc on moves/abilities, no base-species learnset fallback for formes.
+
+## Phase 3A addendum — Pokémon images (Jun 2026) — DONE
+- `backend/sprites.py`: URL-builder resolver (no scraping/downloads) against Showdown CDN `sprites/gen5/` (only complete set incl. gen9 formes). Sprite id = toID(base)-toID(forme) or toID(species). API adds `image_url` + `image_fallback_url` (gen5/0.png) to every pokemon list item & detail.
+- Frontend: `src/components/PokemonSprite.tsx` (expo-image, onError→fallback swap, memory-disk cache) used in list rows (40px) & detail header (96px). No redesign.
+- Tests: tests/test_pokemon_sprites.py (8 tests: plain/forme sprite ids, fallback shape, missingno, API fields, forme-distinct URLs, all-formes hyphenated) → 62/62 passing. Docs: Images section in documentation/API.md.

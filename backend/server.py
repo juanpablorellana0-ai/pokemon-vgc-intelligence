@@ -25,7 +25,8 @@ load_dotenv(ROOT_DIR / ".env")
 # uvicorn is started with a different CWD.
 sys.path.insert(0, str(ROOT_DIR))
 
-from db import close_client  # noqa: E402
+from db import close_client, get_db  # noqa: E402
+from indexes import ensure_indexes  # noqa: E402
 from routers.v1 import router as v1_router  # noqa: E402
 
 logging.basicConfig(
@@ -59,6 +60,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def _startup() -> None:
+    await ensure_indexes(get_db())
 
 
 @app.on_event("shutdown")

@@ -101,3 +101,54 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## Phase 3A — Pokémon Data Explorer (Jun 2026)
+
+backend:
+  - task: "GET /api/v1/pokemon list with pagination (total/limit/offset/page/pages), search q, filters type/ability/only_base/include_special"
+    implemented: true
+    working: true
+    file: "backend/routers/v1/pokemon.py"
+    comment: "54/54 pytest passing incl. 20 new tests in tests/test_pokemon_explorer.py"
+  - task: "GET /api/v1/pokemon/{id} (slug or dex num, base-species preference, learnset attached), 404 handling"
+    implemented: true
+    working: true
+    file: "backend/routers/v1/pokemon.py"
+  - task: "GET /api/v1/pokemon/{id}/abilities and /{id}/moves (resolved via single $in queries)"
+    implemented: true
+    working: true
+    file: "backend/routers/v1/pokemon.py"
+  - task: "Idempotent Mongo indexes at startup"
+    implemented: true
+    working: true
+    file: "backend/indexes.py"
+
+frontend:
+  - task: "Pokémon Explorer list screen: search (debounced), type filter chips, only-base chip, server-side pagination (prev/next), loading/error/empty states"
+    implemented: true
+    working: true
+    file: "frontend/app/pokemon/index.tsx"
+    comment: "Smoke tested via playwright screenshot — list loads starting at Bulbasaur"
+  - task: "Pokémon detail screen: identity, base stat bars, abilities (hidden badge), moves list, loading/error/not-found states"
+    implemented: true
+    working: true
+    file: "frontend/app/pokemon/[id].tsx"
+  - task: "Entry points: Home quick-access tile (LIVE badge) + Menu row -> /pokemon"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/index.tsx, frontend/app/(tabs)/menu.tsx"
+
+agent_communication:
+  - agent: "main"
+    message: "Phase 3A complete pending frontend E2E validation. Backend fully tested (54 pytest). Test frontend flows only: home tile -> explorer -> search 'gholdengo' -> type filters -> pagination -> detail navigation -> not-found state (/pokemon/zzz). ES is default language. No auth required."
+
+## Phase 3A addendum — Image integration (Jun 2026)
+backend:
+  - task: "Sprite resolver backend/sprites.py + image_url/image_fallback_url on /api/v1/pokemon list & detail"
+    implemented: true
+    working: true
+    comment: "62/62 pytest passing (8 new in tests/test_pokemon_sprites.py)"
+frontend:
+  - task: "PokemonSprite component (fallback on error) in explorer list rows and detail header"
+    implemented: true
+    working: true
+    comment: "Smoke tested via screenshots — venusaur/gmax/mega show distinct form sprites"

@@ -7,7 +7,7 @@ import { colors, spacing, radius, fontSize } from '@/src/theme';
 import { useI18n } from '@/src/i18n';
 import { LangToggle } from '@/src/components/LangToggle';
 
-type Key = 'teams' | 'team_builder' | 'damage_calc' | 'analyzer' | 'vgc_guide';
+type Key = 'pokedex' | 'teams' | 'team_builder' | 'damage_calc' | 'analyzer' | 'vgc_guide';
 
 interface Row {
   key: Key;
@@ -22,6 +22,7 @@ export default function MenuScreen() {
   const router = useRouter();
 
   const rows: Row[] = [
+    { key: 'pokedex', label: t('section_pokedex'), desc: t('desc_pokedex'), icon: 'search-outline', href: '/pokemon' },
     { key: 'teams', label: t('section_teams'), desc: t('desc_teams'), icon: 'people-outline', href: '/teams' },
     { key: 'team_builder', label: t('section_team_builder'), desc: t('desc_team_builder'), icon: 'construct-outline', href: '/team-builder' },
     { key: 'damage_calc', label: t('section_damage_calc'), desc: t('desc_damage_calc'), icon: 'calculator-outline', href: '/damage-calculator' },

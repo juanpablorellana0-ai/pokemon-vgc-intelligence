@@ -22,10 +22,10 @@ The foundation phase (this repository) ships architecture + placeholders only. E
 
 Ingest offline-safe, canonical data first so downstream layers can be built without depending on live external sources.
 
-- Species / forms / moves / abilities / items / natures import from a bundled dataset (e.g. Pokémon Showdown reference tables).
+- [x] Species / forms / moves / abilities / items / natures import from a bundled dataset (e.g. Pokémon Showdown reference tables). *(Phase 2B)*
 - Sprite and artwork resolver (URL builder — no scraping).
-- `GET /api/v1/pokemon/{id}` and detail routes.
-- Frontend Pokemon browser (searchable list, detail sheet).
+- [x] `GET /api/v1/pokemon/{id}` and detail routes (`/moves`, `/abilities`). *(Phase 3A — see `documentation/API.md`)*
+- [x] Frontend Pokemon browser (searchable list, filters, pagination, detail view). *(Phase 3A)*
 
 ---
 
