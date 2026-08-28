@@ -55,6 +55,8 @@ async def paged_list(
         "total": total,
         "limit": limit,
         "offset": offset,
+        "page": (offset // limit) + 1,
+        "pages": (total + limit - 1) // limit if total else 0,
         "import_id": imp,
         "items": items,
     }

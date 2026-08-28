@@ -13,6 +13,7 @@ const HERO =
   'https://images.unsplash.com/photo-1778957489702-6455b42cf3eb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHw0fHxlc3BvcnRzJTIwc3RhZGl1bSUyMGRhcmslMjBhcmVuYXxlbnwwfHx8fDE3ODc3Njk2MzZ8MA&ixlib=rb-4.1.0&q=85';
 
 type QAKey =
+  | 'pokedex'
   | 'meta'
   | 'tournaments'
   | 'teams'
@@ -27,6 +28,7 @@ interface QA {
   desc: string;
   icon: keyof typeof Ionicons.glyphMap;
   href: string;
+  live?: boolean;
 }
 
 export default function Home() {
@@ -34,6 +36,7 @@ export default function Home() {
   const router = useRouter();
 
   const quickAccess: QA[] = [
+    { key: 'pokedex', label: t('section_pokedex'), desc: t('desc_pokedex'), icon: 'search-outline', href: '/pokemon', live: true },
     { key: 'meta', label: t('section_meta'), desc: t('desc_meta'), icon: 'stats-chart-outline', href: '/(tabs)/meta' },
     { key: 'tournaments', label: t('section_tournaments'), desc: t('desc_tournaments'), icon: 'trophy-outline', href: '/(tabs)/tournaments' },
     { key: 'teams', label: t('section_teams'), desc: t('desc_teams'), icon: 'people-outline', href: '/teams' },
@@ -100,7 +103,9 @@ export default function Home() {
                 <Text style={styles.tileLabel}>{q.label}</Text>
                 <Text style={styles.tileDesc} numberOfLines={2}>{q.desc}</Text>
                 <View style={styles.tileFooter}>
-                  <Text style={styles.soon}>{t('coming_soon').toUpperCase()}</Text>
+                  <Text style={[styles.soon, q.live && styles.liveBadge]}>
+                    {(q.live ? t('live_badge') : t('coming_soon')).toUpperCase()}
+                  </Text>
                   <Ionicons name="arrow-forward" size={14} color={colors.onSurfaceSecondary} />
                 </View>
               </Pressable>
@@ -234,5 +239,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
+  },
+  liveBadge: {
+    color: colors.success,
   },
 });
