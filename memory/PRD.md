@@ -41,3 +41,6 @@ Ship the foundational architecture for a production-quality competitive Pokémon
 - Damage engine must remain deterministic and independent from AI services.
 - No hardcoded env values.
 - API routes must be prefixed with `/api`.
+
+## Documentation for designer (Jun 2026)
+- Created `frontend/FRONTEND_GUIDE.md` (Spanish): onboarding guide for Paola (designer). Covers product overview/vision, 13 product areas with real status, responsibilities, frontend architecture (Expo Router, theme tokens, i18n, components), API boundary with endpoint list (real vs empty), assets, git workflow (main / frontend/paola / emergent/development), design roadmap (Phases A–F), placeholder philosophy, dev rules (testIDs, i18n, protected files). Documentation-only task — no code/behavior changes.
