@@ -1,0 +1,12 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "EMERGENT_LLM_KEY",
+      "description": "Emergent platform LLM API key for Claude AI features (VGC coaching chat and team analysis). Obtain from the Emergent platform dashboard. Optional — without it, AI endpoints return 503 but the rest of the app works normally.",
+      "requiredAtBoot": false
+    }
+  ]
+}

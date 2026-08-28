@@ -1,0 +1,18 @@
+# Base44 dev image — installs Python deps only; source is bind-mounted at runtime.
+FROM python:3.12-slim
+
+# System build deps: jq needs libjq/libonig; bcrypt/cryptography need gcc/libffi
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc g++ pkg-config libffi-dev libjq-dev libonig-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/backend
+
+COPY stubs ./stubs
+RUN pip install --no-cache-dir ./stubs/emergentintegrations
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Source is bind-mounted in compose; nothing to COPY here.
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001", "--reload", "--reload-dir", "."]
