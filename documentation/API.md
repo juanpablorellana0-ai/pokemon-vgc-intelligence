@@ -81,6 +81,14 @@ led by `import_id` on `sd_pokemon` (`showdown_id`, `num`, `types`, `is_base`,
 `name`), `sd_learnsets`, `sd_moves`, `sd_abilities`, `sd_items`, `sd_natures`,
 `sd_types`, `sd_formats`.
 
+## Images (sprite resolver)
+
+- **Source:** Pokémon Showdown public sprite CDN (`https://play.pokemonshowdown.com/sprites/gen5/…`) — the only complete static set covering every species and forme. Nothing is downloaded or stored; URLs are computed at read time by `backend/sprites.py` (URL builder, no scraping).
+- **Fields:** every Pokémon list item and detail response carries `image_url` and `image_fallback_url`. The frontend must consume these fields — never hardcode CDN paths.
+- **Form handling:** sprite id mirrors Showdown's own rule — `toID(baseSpecies)-toID(forme)` (e.g. `venusaur-mega`, `venusaur-gmax`, `urshifu-rapidstrike`); plain `toID(species)` otherwise. Forms therefore get their own image, never the base one.
+- **Fallback:** `image_fallback_url` is Showdown's generic unknown-Pokémon sprite (`gen5/0.png`). The frontend component (`src/components/PokemonSprite.tsx`) swaps to it on image load error, so a missing sprite never breaks the UI.
+- **Performance:** 96×96 PNG sprites; the list uses FlatList virtualization (only visible rows load) and `expo-image` memory-disk caching.
+
 ## Known canonical-data limitations (not invented by the API)
 
 - **Generation** is not stored per Pokémon in the imported Showdown dataset → no generation filter.

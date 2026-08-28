@@ -140,3 +140,15 @@ frontend:
 agent_communication:
   - agent: "main"
     message: "Phase 3A complete pending frontend E2E validation. Backend fully tested (54 pytest). Test frontend flows only: home tile -> explorer -> search 'gholdengo' -> type filters -> pagination -> detail navigation -> not-found state (/pokemon/zzz). ES is default language. No auth required."
+
+## Phase 3A addendum — Image integration (Jun 2026)
+backend:
+  - task: "Sprite resolver backend/sprites.py + image_url/image_fallback_url on /api/v1/pokemon list & detail"
+    implemented: true
+    working: true
+    comment: "62/62 pytest passing (8 new in tests/test_pokemon_sprites.py)"
+frontend:
+  - task: "PokemonSprite component (fallback on error) in explorer list rows and detail header"
+    implemented: true
+    working: true
+    comment: "Smoke tested via screenshots — venusaur/gmax/mega show distinct form sprites"

@@ -10,6 +10,7 @@ import re
 
 from fastapi import APIRouter, HTTPException, Query
 from db import get_db
+from sprites import attach_image_urls
 from ._query import paged_list, require_active_import
 
 router = APIRouter(prefix="/pokemon", tags=["pokemon"])
@@ -90,11 +91,14 @@ async def list_pokemon(
         filt = clauses[0]
     elif clauses:
         filt = {"$and": clauses}
-    return await paged_list(
+    result = await paged_list(
         get_db(), "sd_pokemon",
         limit=limit, offset=offset,
         extra_filter=filt, sort=[("num", 1), ("name", 1)],
     )
+    for item in result["items"]:
+        attach_image_urls(item)
+    return result
 
 
 @router.get("/{id}")
@@ -106,7 +110,7 @@ async def get_pokemon(id: str):
         {"_id": 0, "import_id": 0},
     )
     doc["learnset"] = (ls or {}).get("moves", {})
-    return doc
+    return attach_image_urls(doc)
 
 
 @router.get("/{id}/abilities")

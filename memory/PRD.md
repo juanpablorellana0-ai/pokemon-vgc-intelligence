@@ -61,3 +61,8 @@ Ship the foundational architecture for a production-quality competitive Pokémon
 - Tests: tests/test_pokemon_explorer.py (20 tests) → 54/54 pytest passing. Testing agent frontend E2E: 18/18 pass (iteration_2.json).
 - Docs: documentation/API.md (new), ROADMAP Phase 1 items checked.
 - Known canonical-data gaps (documented, not invented): no generation field, no per-Pokémon format legality, null desc/short_desc on moves/abilities, no base-species learnset fallback for formes.
+
+## Phase 3A addendum — Pokémon images (Jun 2026) — DONE
+- `backend/sprites.py`: URL-builder resolver (no scraping/downloads) against Showdown CDN `sprites/gen5/` (only complete set incl. gen9 formes). Sprite id = toID(base)-toID(forme) or toID(species). API adds `image_url` + `image_fallback_url` (gen5/0.png) to every pokemon list item & detail.
+- Frontend: `src/components/PokemonSprite.tsx` (expo-image, onError→fallback swap, memory-disk cache) used in list rows (40px) & detail header (96px). No redesign.
+- Tests: tests/test_pokemon_sprites.py (8 tests: plain/forme sprite ids, fallback shape, missingno, API fields, forme-distinct URLs, all-formes hyphenated) → 62/62 passing. Docs: Images section in documentation/API.md.

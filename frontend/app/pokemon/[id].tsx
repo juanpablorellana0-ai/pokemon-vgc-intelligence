@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, spacing, radius, fontSize } from '@/src/theme';
 import { useI18n } from '@/src/i18n';
+import { PokemonSprite } from '@/src/components/PokemonSprite';
 import {
   ApiError,
   apiGet,
@@ -134,14 +135,24 @@ function DetailHeader({ pokemon, abilities, movesTotal, t }: {
     <View style={{ gap: spacing.lg }}>
       {/* Identity */}
       <View style={styles.card}>
-        <Text style={styles.dexNum}>#{String(pokemon.num).padStart(4, '0')}</Text>
-        <Text style={styles.name} testID="detail-name">{pokemon.name}</Text>
-        <View style={styles.typeRow}>
-          {pokemon.types.map((ty) => (
-            <View key={ty} style={styles.typeChip} testID={`detail-type-${ty.toLowerCase()}`}>
-              <Text style={styles.typeChipText}>{ty}</Text>
+        <View style={styles.identityRow}>
+          <View style={{ flex: 1, gap: spacing.sm }}>
+            <Text style={styles.dexNum}>#{String(pokemon.num).padStart(4, '0')}</Text>
+            <Text style={styles.name} testID="detail-name">{pokemon.name}</Text>
+            <View style={styles.typeRow}>
+              {pokemon.types.map((ty) => (
+                <View key={ty} style={styles.typeChip} testID={`detail-type-${ty.toLowerCase()}`}>
+                  <Text style={styles.typeChipText}>{ty}</Text>
+                </View>
+              ))}
             </View>
-          ))}
+          </View>
+          <PokemonSprite
+            uri={pokemon.image_url}
+            fallbackUri={pokemon.image_fallback_url}
+            size={96}
+            testID="detail-sprite"
+          />
         </View>
         <View style={styles.metaRow}>
           {pokemon.height_m != null && (
@@ -280,6 +291,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   dexNum: { color: colors.onSurfaceSecondary, fontSize: fontSize.sm, fontWeight: '700' },
+  identityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   name: { color: colors.onSurface, fontSize: fontSize.display, fontWeight: '800', letterSpacing: -0.5 },
   typeRow: { flexDirection: 'row', gap: spacing.sm },
   typeChip: {

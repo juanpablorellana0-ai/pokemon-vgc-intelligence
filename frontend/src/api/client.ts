@@ -73,6 +73,8 @@ export interface PokemonSummary {
   is_base: boolean;
   forme: string | null;
   base_species_name: string | null;
+  image_url: string;
+  image_fallback_url: string;
 }
 
 export interface PokemonDetail extends PokemonSummary {

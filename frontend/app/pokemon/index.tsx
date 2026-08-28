@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, spacing, radius, fontSize } from '@/src/theme';
 import { useI18n } from '@/src/i18n';
+import { PokemonSprite } from '@/src/components/PokemonSprite';
 import { apiGet, Paged, PokemonSummary, TypeInfo } from '@/src/api/client';
 
 const PAGE_SIZE = 50;
@@ -172,6 +173,12 @@ export default function PokemonExplorer() {
               onPress={() => router.push(`/pokemon/${item.showdown_id}` as any)}
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
             >
+              <PokemonSprite
+                uri={item.image_url}
+                fallbackUri={item.image_fallback_url}
+                size={40}
+                testID={`pokemon-sprite-${item.showdown_id}`}
+              />
               <Text style={styles.rowNum}>#{String(item.num).padStart(4, '0')}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
@@ -327,7 +334,7 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceSecondary,
     fontSize: fontSize.sm,
     fontWeight: '700',
-    width: 52,
+    width: 44,
   },
   rowName: { color: colors.onSurface, fontSize: fontSize.base, fontWeight: '700' },
   typeRow: { flexDirection: 'row', gap: spacing.xs, marginTop: 2 },
